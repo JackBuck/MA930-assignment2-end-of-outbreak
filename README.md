@@ -8,3 +8,6 @@ To set up a new conda environment, run:
 conda create --name <env-name> python=3.9 --file requirements.txt
 conda activate <env-name>
 ```
+
+## Report
+See the pdf report in `/docs` for more details on the project.
