@@ -3,71 +3,11 @@ from datetime import timedelta
 
 import numpy as np
 import pandas as pd
-import scipy.special
 import scipy.stats
 from tqdm import tqdm
 
-from endofoutbreak.data import save_samples, lazy_load_samples
-
-
-class DiscretisedWeibull:
-    def __init__(self, mean, shape):
-        self._mean = mean
-        self._shape = shape
-        self.continuous_rv = self._make_cts_rv(mean, shape)
-
-    @staticmethod
-    def _make_cts_rv(mean, shape):
-        weibull_scale = mean / scipy.special.gamma(1 + 1 / shape)
-        return scipy.stats.weibull_min(shape, scale=weibull_scale)
-
-    @property
-    def mean(self):
-        return self._mean
-
-    @mean.setter
-    def mean(self, new_mean):
-        self._mean = new_mean
-        self.continuous_rv = self._make_cts_rv(new_mean, self._shape)
-
-    def pmf(self, x):
-        """Probability mass function"""
-        x = np.asarray(x)
-        if x.dtype != "int":
-            raise TypeError(
-                f"Expected an integer or integer array. Got {x!r} of type"
-                f"type {type(x)} and dtype {x.dtype}."
-            )
-
-        # Where x=1 we want to integrate from 0 to 1.5; when x=0 we want to return 0.
-        cdf_hi = self.continuous_rv.cdf(np.where(x > 0, x + 0.5, 0))
-        cdf_lo = self.continuous_rv.cdf(np.where(x > 1, x - 0.5, 0))
-        probs = cdf_hi - cdf_lo
-
-        return probs
-
-    def cdf(self, x):
-        """Cumulative distribution function"""
-        x = np.asarray(x)
-        if x.dtype != "int":
-            raise TypeError(
-                f"Expected an integer or integer array. Got {x!r} of type"
-                f"type {type(x)} and dtype {x.dtype}."
-            )
-
-        cdf = self.continuous_rv.cdf(np.where(x > 0, x + 0.5, 0))
-        return cdf
-
-    def sf(self, x):
-        """Survival function (1-cdf)"""
-        return 1 - self.cdf(x)
-
-
-def estimate_end_of_outbreak_probability_from_mcmc_result(
-    samples, burn_in, thinning=1
-):
-    """ Estimate the probability of no more infections from the MCMC result """
-    return np.mean(samples[burn_in::thinning])
+from endofoutbreak import data
+from endofoutbreak.estimation.misc import DiscretisedWeibull
 
 
 def sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times(
@@ -77,10 +17,10 @@ def sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times(
     serial_interval_mean,
     serial_interval_shape,
     nsteps,
+    dataset,
     initial_delay_matrix=None,
     min_current_time=None,
     max_current_time=None,
-    dataset=None,
     rng=None,
 ):
     if rng is None:
@@ -117,7 +57,7 @@ def sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times(
             initial_delay_matrix_trunc,
             copy.copy(rng),
         )
-        save_samples(eoo_probability, loglikelihood, dataset, suffix=current_time)
+        data.save_samples(eoo_probability, loglikelihood, dataset, suffix=current_time)
 
 
 def sample_end_of_outbreak_probability_via_mcmc(
@@ -489,8 +429,10 @@ def calc_truncated_infection_process_loglikelihood(
     return loglikelihood
 
 
-def calculate_end_of_outbreak_probability_estimates(first_date, dataset, burn_in):
-    data_loaders = lazy_load_samples(dataset)
+def calculate_end_of_outbreak_probability_estimates_from_mcmc_samples(
+    first_date, dataset, burn_in
+):
+    data_loaders = data.lazy_load_samples(dataset)
 
     eoo_probabilities = np.zeros(len(data_loaders))
     desc = "Processing data"
@@ -509,72 +451,8 @@ def calculate_end_of_outbreak_probability_estimates(first_date, dataset, burn_in
     return df
 
 
-def calculate_alternative_end_of_outbreak_probability_estimate(
-    target_dates,
-    first_date,
-    infection_date_offsets,
-    r0,
-    offspring_shape,
-    serial_interval_mean,
-    serial_interval_shape,
+def estimate_end_of_outbreak_probability_from_mcmc_result(
+    samples, burn_in, thinning=1
 ):
-    """
-    Calculate the approximation of EOO probability from current literature.
-
-    This approximation is theoretically an over-estimation.
-
-    This is the approximation present in:
-      - Linton, N. M., Akhmetzhanov, A. R., & Nishiura, H. (2021). Localized
-        end-of-outbreak determination for coronavirus disease 2019 (COVID-19): examples
-        from clusters in Japan.
-        International Journal of Infectious Diseases, 105, 286–292.
-        https://doi.org/10.1016/j.ijid.2021.02.106
-      - Akhmetzhanov, A. R., Jung, S., Cheng, H.-Y., & Thompson, R. N. (2021). A
-        hospital-related outbreak of SARS-CoV-2 associated with variant Epsilon
-        (B.1.429) in Taiwan: transmission potential and outbreak containment under
-        intensified contact tracing, January – February 2021.
-        International Journal of Infectious Diseases, 110, 15–20.
-        https://doi.org/10.1016/j.ijid.2021.06.028
-    """
-    p = r0 / (r0 + offspring_shape)
-    offspring_rv = scipy.stats.nbinom(offspring_shape, 1-p)
-    serial_interval_rv = DiscretisedWeibull(serial_interval_mean, serial_interval_shape)
-
-    eoo_probabilities = -1 * np.ones(len(target_dates))
-    for i, current_date in enumerate(target_dates):
-        offset = int((current_date - first_date) / timedelta(days=1))
-        relevant_infection_date_offsets = infection_date_offsets[
-            infection_date_offsets <= offset
-        ]
-        days_since_infection = offset - relevant_infection_date_offsets
-
-        si_cdf = serial_interval_rv.cdf(days_since_infection)
-
-        ncases = len(relevant_infection_date_offsets)
-        y = np.arange(offspring_rv.ppf(0.999 ** (1 / ncases)))
-        offspring_pmf = offspring_rv.pmf(y)
-
-        terms = offspring_pmf.reshape(-1, 1) * si_cdf**y.reshape(-1, 1)
-        eoo_prob = np.prod(np.sum(terms, axis=0), axis=0)
-        eoo_probabilities[i] = eoo_prob
-
-    return eoo_probabilities
-
-
-def calculate_date_outbreak_declared_over(case_counts_df, eoo_prob_df, thresh=0.95):
-    has_cases = case_counts_df["num_cases"] > 0
-    date_of_last_case = case_counts_df.loc[has_cases, "time"].max()
-
-    is_declared_over = eoo_prob_df["eoo_probability"] >= thresh
-    is_declared_over_alt = eoo_prob_df["eoo_probability_alternative"] >= thresh
-    date_declared_over = eoo_prob_df.loc[is_declared_over, "time"].min()
-    date_declared_over_alt = eoo_prob_df.loc[is_declared_over_alt, "time"].min()
-    days_after_last_case = (date_declared_over - date_of_last_case).days
-    days_after_last_case_alt = (date_declared_over_alt - date_of_last_case).days
-
-    return {
-        "date_declared_over": date_declared_over,
-        "date_declared_over_alt": date_declared_over_alt,
-        "days_after_last_case": days_after_last_case,
-        "days_after_last_case_alt": days_after_last_case_alt,
-    }
+    """ Estimate the probability of no more infections from the MCMC result """
+    return np.mean(samples[burn_in::thinning])

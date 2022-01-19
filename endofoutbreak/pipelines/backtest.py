@@ -1,7 +1,7 @@
 from endofoutbreak import data
 from endofoutbreak.estimation import (
     sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times,
-    calculate_end_of_outbreak_probability_estimates,
+    calculate_end_of_outbreak_probability_estimates_from_mcmc_samples,
     calculate_alternative_end_of_outbreak_probability_estimate,
     calculate_date_outbreak_declared_over,
 )
@@ -63,7 +63,7 @@ def run_backtest_pipeline(
         )
 
     if generate_eoo_plot:
-        eoo_prob_df = calculate_end_of_outbreak_probability_estimates(
+        eoo_prob_df = calculate_end_of_outbreak_probability_estimates_from_mcmc_samples(
             first_date, dataset, burn_in=10_000
         )
         eoo_prob_df["eoo_probability_alternative"] = calculate_alternative_end_of_outbreak_probability_estimate(
