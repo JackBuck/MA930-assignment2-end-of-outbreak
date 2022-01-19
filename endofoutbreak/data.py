@@ -1,7 +1,9 @@
 import os
 import re
 
+import dateutil.parser
 import numpy as np
+import pandas as pd
 import yaml
 
 
@@ -24,6 +26,18 @@ def load_params(dataset):
     with open(fpath) as f:
         params = yaml.safe_load(f)
     return params
+
+
+def load_observations(dataset=None, fpath=None):
+    """Load the observations csv file"""
+    if not fpath:
+        if not dataset:
+            raise ValueError("Must supply at least one of 'dataset' and 'fpath'")
+        fpath = os.path.join(DATA_DIR, "01-raw", dataset, "case-counts.csv")
+
+    obs_df = pd.read_csv(fpath, parse_dates=["Date"], date_parser=dateutil.parser.parse)
+    obs_df = obs_df.rename(columns={"Date": "time", "Cases": "num_cases"})
+    return obs_df
 
 
 def save_samples(eoo_prob_samples, loglikelihoods, subdirectory=None, suffix=None):
@@ -92,21 +106,35 @@ def lazy_load_samples(subdirectory=None):
     return load_functions
 
 
-def get_plots_directory(subdirectory=None):
-    """ Return the plots directory
+def get_plots_directory(dataset, subdirectory=None):
+    """ Return a subdirectory in which to save plots.
 
-    If an optional subpath is provided then also ensure that it exists.
+    If an optional subdirectory is provided then also ensure that it exists.
 
     We relinquish control of saving the plot since it is more convenient to be able to
     save and then show the plot directly from the function which creates it.
     """
-    plots_dir_path = os.path.join(DATA_DIR, "plots")
-    if not os.path.exists(plots_dir_path):
-        os.mkdir(plots_dir_path)
-
+    if not os.path.isdir(DATA_DIR):
+        raise FileNotFoundError(
+            f"Expected data directory to already exist: {DATA_DIR!r}"
+        )
+    plots_dir_path = os.path.join(DATA_DIR, "plots", dataset)
     if subdirectory:
         plots_dir_path = os.path.join(plots_dir_path, subdirectory)
-        if not os.path.exists(plots_dir_path):
-            os.mkdir(plots_dir_path)
+
+    os.makedirs(plots_dir_path, 0x755, exist_ok=True)
 
     return plots_dir_path
+
+
+def get_plots_filepath(dataset, *parts):
+    """Return a filepath at which a plot may be saved.
+
+    The function will ensure all subdirectories between DATA_DIR and the target
+    directory exist.
+    """
+
+    dir_path = get_plots_directory(dataset, *parts[:-1])
+    fpath = os.path.join(dir_path, parts[-1])
+
+    return fpath

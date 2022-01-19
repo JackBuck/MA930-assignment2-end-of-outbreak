@@ -1,11 +1,8 @@
-import os
 from datetime import timedelta
 
-import dateutil.parser
 import numpy as np
-import pandas as pd
 
-from endofoutbreak.data import DATA_DIR, load_params
+from endofoutbreak import data
 from endofoutbreak.estimation import (
     sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times,
     calculate_end_of_outbreak_probability_estimates,
@@ -13,18 +10,6 @@ from endofoutbreak.estimation import (
 )
 from endofoutbreak.plotting import generate_mcmc_trace_plots_for_each_time, plot_probability_of_future_infections, \
     plot_branching_process_distributions
-
-# The file path containing the data from the hospital related outbreak in Taiwan
-DATA_FILE_NAME = "EndOfOutbreak_Taiwan_Cases_Data.csv"
-
-
-def load_observations(fpath=None):
-    if not fpath:
-        fpath = os.path.join(DATA_DIR, DATA_FILE_NAME)
-
-    obs_df = pd.read_csv(fpath, parse_dates=["Date"], date_parser=dateutil.parser.parse)
-    obs_df = obs_df.rename(columns={"Date": "time", "Cases": "num_cases"})
-    return obs_df
 
 
 def extract_infection_times(obs_df):
@@ -52,8 +37,8 @@ def main(
 ):
     """ An ad-hoc data pipeline """
     dataset = "taiwan"
-    params = load_params(dataset)
-    obs_df = load_observations()
+    params = data.load_params(dataset)
+    obs_df = data.load_observations(dataset)
     first_date, horizon, infection_date_offsets = extract_infection_times(obs_df)
 
     if plot_model_distributions:
@@ -62,7 +47,7 @@ def main(
             params["offspring"]["shape"],
             params["serial_interval"]["mean"],
             params["serial_interval"]["shape"],
-            save_path=os.path.join(DATA_DIR, "plots", "taiwan-model-distributions.png"),
+            save_path=data.get_plots_filepath(dataset, "model-distributions.png"),
             show=True,
         )
 
@@ -95,8 +80,7 @@ def main(
             params["serial_interval"]["mean"],
             params["serial_interval"]["shape"],
         )
-
-        save_path = os.path.join(DATA_DIR, "plots", f"{dataset}-eoo-plot.png")
+        save_path = data.get_plots_filepath(dataset, "eoo-plot.png")
         plot_probability_of_future_infections(
             obs_df, eoo_prob_df, show=True, save_path=save_path
         )
