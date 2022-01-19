@@ -2,9 +2,28 @@ import os
 import re
 
 import numpy as np
+import yaml
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../data")
+
+
+def load_params(dataset):
+    """Load a parameters yaml file.
+
+    The file is expected to have the following form:
+
+        offspring:
+          r0: 1.3
+          shape: 0.38
+        serial_interval:
+          mean: 4.8
+          shape: 2.3
+    """
+    fpath = os.path.join(DATA_DIR, "01-raw", dataset, "parameters.yaml")
+    with open(fpath) as f:
+        params = yaml.safe_load(f)
+    return params
 
 
 def save_samples(eoo_prob_samples, loglikelihoods, subdirectory=None, suffix=None):

@@ -5,7 +5,7 @@ import dateutil.parser
 import numpy as np
 import pandas as pd
 
-from endofoutbreak.data import DATA_DIR
+from endofoutbreak.data import DATA_DIR, load_params
 from endofoutbreak.estimation import (
     sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times,
     calculate_end_of_outbreak_probability_estimates,
@@ -16,15 +16,6 @@ from endofoutbreak.plotting import generate_mcmc_trace_plots_for_each_time, plot
 
 # The file path containing the data from the hospital related outbreak in Taiwan
 DATA_FILE_NAME = "EndOfOutbreak_Taiwan_Cases_Data.csv"
-
-# R0 and OFFSPRING_SHAPE determine the Negative-Binomial distribution for the number of
-# direct transmissions from a general individual
-R0 = 1.3
-OFFSPRING_SHAPE = 0.38
-# The serial interval is modelled as a discrete version of the Weibull distribution with
-# this mean and shape
-SERIAL_INTERVAL_MEAN = 4.8
-SERIAL_INTERVAL_SHAPE = 2.3
 
 
 def load_observations(fpath=None):
@@ -60,16 +51,17 @@ def main(
     generate_eoo_plot=True,
 ):
     """ An ad-hoc data pipeline """
+    dataset = "taiwan"
+    params = load_params(dataset)
     obs_df = load_observations()
     first_date, horizon, infection_date_offsets = extract_infection_times(obs_df)
-    dataset = "taiwan"
 
     if plot_model_distributions:
         plot_branching_process_distributions(
-            R0,
-            OFFSPRING_SHAPE,
-            SERIAL_INTERVAL_MEAN,
-            SERIAL_INTERVAL_SHAPE,
+            params["offspring"]["r0"],
+            params["offspring"]["shape"],
+            params["serial_interval"]["mean"],
+            params["serial_interval"]["shape"],
             save_path=os.path.join(DATA_DIR, "plots", "taiwan-model-distributions.png"),
             show=True,
         )
@@ -77,10 +69,10 @@ def main(
     if rerun_mcmc:
         sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times(
             infection_date_offsets,
-            R0,
-            OFFSPRING_SHAPE,
-            SERIAL_INTERVAL_MEAN,
-            SERIAL_INTERVAL_SHAPE,
+            params["offspring"]["r0"],
+            params["offspring"]["shape"],
+            params["serial_interval"]["mean"],
+            params["serial_interval"]["shape"],
             nsteps=10_000,
             subdirectory=dataset,
         )
@@ -98,10 +90,10 @@ def main(
             eoo_prob_df["time"],
             first_date,
             infection_date_offsets,
-            R0,
-            OFFSPRING_SHAPE,
-            SERIAL_INTERVAL_MEAN,
-            SERIAL_INTERVAL_SHAPE,
+            params["offspring"]["r0"],
+            params["offspring"]["shape"],
+            params["serial_interval"]["mean"],
+            params["serial_interval"]["shape"],
         )
 
         save_path = os.path.join(DATA_DIR, "plots", f"{dataset}-eoo-plot.png")
