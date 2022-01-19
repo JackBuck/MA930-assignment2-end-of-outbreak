@@ -63,17 +63,17 @@ def main(
             params["serial_interval"]["mean"],
             params["serial_interval"]["shape"],
             nsteps=10_000,
-            subdirectory=dataset,
+            dataset=dataset,
         )
 
     if generate_trace_plots:
         generate_mcmc_trace_plots_for_each_time(
-            subdirectory=dataset, burn_in=1_000, start_date=first_date
+            dataset, burn_in=1_000, start_date=first_date
         )
 
     if generate_eoo_plot:
         eoo_prob_df = calculate_end_of_outbreak_probability_estimates(
-            first_date, subdirectory=dataset, burn_in=10_000
+            first_date, dataset, burn_in=10_000
         )
         eoo_prob_df["eoo_probability_alternative"] = calculate_alternative_end_of_outbreak_probability_estimate(
             eoo_prob_df["time"],

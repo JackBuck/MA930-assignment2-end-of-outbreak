@@ -106,10 +106,10 @@ def plot_end_of_outbreak_probability_samples(
         return fig
 
 
-def generate_mcmc_trace_plots_for_each_time(subdirectory, burn_in, start_date):
-    plots_dir_path = get_plots_directory(f"{subdirectory}-traces")
+def generate_mcmc_trace_plots_for_each_time(dataset, burn_in, start_date):
+    plots_dir_path = get_plots_directory(dataset, "traces")
 
-    data_loaders = lazy_load_samples(subdirectory)
+    data_loaders = lazy_load_samples(dataset)
     desc = "Generating trace plots"
     for current_time, loader in tqdm(data_loaders.items(), desc=desc):
         eoo_prob_samples = loader["eoo_probability"]()

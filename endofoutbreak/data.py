@@ -1,3 +1,19 @@
+"""A module to manage access to the data directory.
+
+Data is separated into folders for each step in the data pipeline. Within each of these
+folders is a subfolder corresponding to each dataset. For example:
+
+data
+  |- 01-raw
+  |   |- toy-test-set
+  |   |- taiwan
+  |- 02-intermediate
+  |   |-mcmc-samples
+  |      |- taiwan
+  |- 03-plots
+  |   |- taiwan
+"""
+
 import os
 import re
 
@@ -8,6 +24,10 @@ import yaml
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../data")
+RAW = "01-raw"
+INTERMEDIATE = "02-intermediate"
+MCMC_SAMPLES = "mcmc-samples"
+PLOTS = "03-plots"
 
 
 def load_params(dataset):
@@ -22,7 +42,7 @@ def load_params(dataset):
           mean: 4.8
           shape: 2.3
     """
-    fpath = os.path.join(DATA_DIR, "01-raw", dataset, "parameters.yaml")
+    fpath = os.path.join(DATA_DIR, RAW, dataset, "parameters.yaml")
     with open(fpath) as f:
         params = yaml.safe_load(f)
     return params
@@ -33,22 +53,19 @@ def load_observations(dataset=None, fpath=None):
     if not fpath:
         if not dataset:
             raise ValueError("Must supply at least one of 'dataset' and 'fpath'")
-        fpath = os.path.join(DATA_DIR, "01-raw", dataset, "case-counts.csv")
+        fpath = os.path.join(DATA_DIR, RAW, dataset, "case-counts.csv")
 
     obs_df = pd.read_csv(fpath, parse_dates=["Date"], date_parser=dateutil.parser.parse)
     obs_df = obs_df.rename(columns={"Date": "time", "Cases": "num_cases"})
     return obs_df
 
 
-def save_samples(eoo_prob_samples, loglikelihoods, subdirectory=None, suffix=None):
-    """ Save MCMC samples in a standard location with an optional subdirectory.
+def save_samples(eoo_prob_samples, loglikelihoods, dataset, suffix=None):
+    """ Save MCMC samples in a standard location.
 
     Samples are saved using ``numpy.save()``.
     """
-    path_parts = [DATA_DIR, "mcmc-samples"]
-    if subdirectory:
-        path_parts.append(subdirectory)
-    dir_path = os.path.join(*path_parts)
+    dir_path = os.path.join(DATA_DIR, INTERMEDIATE, MCMC_SAMPLES, dataset)
 
     if not os.path.isdir(dir_path):
         os.mkdir(dir_path)
@@ -58,21 +75,17 @@ def save_samples(eoo_prob_samples, loglikelihoods, subdirectory=None, suffix=Non
     np.save(os.path.join(dir_path, f"loglikelihoods{suffix}.npy"), loglikelihoods)
 
 
-def lazy_load_samples(subdirectory=None):
+def lazy_load_samples(dataset):
     """ Return a dictionary of functions to load data from an mcmc run.
 
-    The returned dictionary has keys for each current_time (inferred from the file
-    name). The values are themselves dictionaries of the form
-    {
-        "eoo_probability": <function-to-load-numpy array>,
-        "loglikelihoods": <function-to-load-numpy array>,
-    }
+    The returned dictionary has keys for each current_time (inferred from the file name
+    The values are themselves dictionaries of the form
+        {
+            "eoo_probability": <function-to-load-numpy array>,
+            "loglikelihoods": <function-to-load-numpy array>,
+        }
     """
-
-    path_parts = [DATA_DIR, "mcmc-samples"]
-    if subdirectory:
-        path_parts.append(subdirectory)
-    dir_path = os.path.join(*path_parts)
+    dir_path = os.path.join(DATA_DIR, INTERMEDIATE, MCMC_SAMPLES, dataset)
 
     filenames = os.listdir(dir_path)
     eoo_prob_sample_fnames = {
@@ -118,7 +131,7 @@ def get_plots_directory(dataset, subdirectory=None):
         raise FileNotFoundError(
             f"Expected data directory to already exist: {DATA_DIR!r}"
         )
-    plots_dir_path = os.path.join(DATA_DIR, "plots", dataset)
+    plots_dir_path = os.path.join(DATA_DIR, PLOTS, dataset)
     if subdirectory:
         plots_dir_path = os.path.join(plots_dir_path, subdirectory)
 

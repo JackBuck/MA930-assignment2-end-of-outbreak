@@ -80,7 +80,7 @@ def sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times(
     initial_delay_matrix=None,
     min_current_time=None,
     max_current_time=None,
-    subdirectory=None,
+    dataset=None,
     rng=None,
 ):
     if rng is None:
@@ -117,7 +117,7 @@ def sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times(
             initial_delay_matrix_trunc,
             copy.copy(rng),
         )
-        save_samples(eoo_probability, loglikelihood, subdirectory, suffix=current_time)
+        save_samples(eoo_probability, loglikelihood, dataset, suffix=current_time)
 
 
 def sample_end_of_outbreak_probability_via_mcmc(
@@ -489,8 +489,8 @@ def calc_truncated_infection_process_loglikelihood(
     return loglikelihood
 
 
-def calculate_end_of_outbreak_probability_estimates(first_date, subdirectory, burn_in):
-    data_loaders = lazy_load_samples(subdirectory)
+def calculate_end_of_outbreak_probability_estimates(first_date, dataset, burn_in):
+    data_loaders = lazy_load_samples(dataset)
 
     eoo_probabilities = np.zeros(len(data_loaders))
     desc = "Processing data"
