@@ -135,7 +135,7 @@ def get_plots_directory(dataset, subdirectory=None):
     if subdirectory:
         plots_dir_path = os.path.join(plots_dir_path, subdirectory)
 
-    os.makedirs(plots_dir_path, 0x755, exist_ok=True)
+    os.makedirs(plots_dir_path, exist_ok=True)
 
     return plots_dir_path
 
