@@ -6,10 +6,14 @@ from endofoutbreak import data
 from endofoutbreak.estimation import (
     sample_end_of_outbreak_probability_via_mcmc_for_multiple_current_times,
     calculate_end_of_outbreak_probability_estimates,
-    calculate_alternative_end_of_outbreak_probability_estimate, calculate_date_outbreak_declared_over,
+    calculate_alternative_end_of_outbreak_probability_estimate,
+    calculate_date_outbreak_declared_over,
 )
-from endofoutbreak.plotting import generate_mcmc_trace_plots_for_each_time, plot_probability_of_future_infections, \
-    plot_branching_process_distributions
+from endofoutbreak.plotting import (
+    generate_mcmc_trace_plots_for_each_time,
+    plot_probability_of_future_infections,
+    plot_branching_process_distributions,
+)
 
 
 def extract_infection_times(obs_df):
