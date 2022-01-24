@@ -4,6 +4,13 @@ import scipy.stats
 
 
 class DiscretisedWeibull:
+    """A Weibull random variable, rounded to the nearest positive integer.
+
+    Developer Note:
+        I have used the scipy.stats.rv_frozen interface as closely as possible while
+        writing this class, but I have not implemented everything and have not
+        implemented this as a true instance of scipy.stats.rv_discrete.
+    """
     def __init__(self, mean, shape):
         self._mean = mean
         self._shape = shape
@@ -22,6 +29,11 @@ class DiscretisedWeibull:
     def mean(self, new_mean):
         self._mean = new_mean
         self.continuous_rv = self._make_cts_rv(new_mean, self._shape)
+
+    def rvs(self, size=None, random_state=None):
+        """Generate random variates"""
+        rvs = self.continuous_rv.rvs(size=size, random_state=random_state)
+        return rvs.round().clip(0, np.infty).astype("int")
 
     def pmf(self, x):
         """Probability mass function"""

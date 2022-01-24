@@ -32,6 +32,16 @@ def run_backtest_pipeline(
     Different stages of the calculation can be switched off and on using the keyword
     arguments to the pipeline function.
     """
+
+    # NOTE:
+    #   Some functions in this pipeline take the data as input, while others instead
+    #   load and save the data within the function. The functions which load and save
+    #   their own data can be identified as those accepting a `dataset` argument. The
+    #   reason for allowing some functions to load and save their own data is so that
+    #   the pipeline has some form of checkpointing.
+    # TODO: Move to a 3rd party data pipeline library with more principled management of
+    #  data.
+
     params = data.load_params(dataset)
     obs_df = data.load_observations(dataset)
     first_date, horizon, infection_date_offsets = extract_infection_times(obs_df)
